@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Admin dashboard for Abdul Wahab portfolio submissions.">
+  <title>Submissions | Abdul Wahab Admin</title>
+  <link rel="icon" href="assets/images/profile.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <div class="ambient ambient-a" aria-hidden="true"></div>
+  <div class="ambient ambient-b" aria-hidden="true"></div>
+  <div class="grid-noise" aria-hidden="true"></div>
+
+  <div class="admin-shell">
+
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/admin" aria-label="Admin home"><span>AW</span><i>.</i></a>
+        <span class="topbar-divider" aria-hidden="true"></span>
+        <div class="topbar-title">
+          <small>Dashboard</small>
+          <strong>Submissions</strong>
+        </div>
+        <span class="topbar-spacer" aria-hidden="true"></span>
+
+        <div class="user-chip" title="Signed in account">
+          <span class="avatar" id="userAvatar" aria-hidden="true">&#183;</span>
+          <span id="userEmail">Loading&#8230;</span>
+        </div>
+
+        <div class="topbar-actions">
+          <a class="icon-btn accent" href="/"><span aria-hidden="true">&#8592;</span> View site</a>
+          <button type="button" class="icon-btn danger" id="logoutBtn">
+            <span aria-hidden="true">&#9099;</span> Logout
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="page-head">
+        <p class="eyebrow">Contact form</p>
+        <h1>Inbox <em>Overview</em></h1>
+        <p>Every message sent through the portfolio contact form, newest first.</p>
+      </section>
+
+      <section class="stats-grid" aria-label="Submission statistics">
+        <article class="stat-card">
+          <div class="stat-top">
+            <small>Total messages</small>
+            <span class="stat-icon cyan" aria-hidden="true">&#9993;</span>
+          </div>
+          <b id="statTotal" data-count="0">0</b>
+          <div class="stat-bar"><i id="barTotal"></i></div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-top">
+            <small>Unread</small>
+            <span class="stat-icon violet" aria-hidden="true">&#9679;</span>
+          </div>
+          <b id="statUnread" data-count="0">0</b>
+          <div class="stat-bar"><i id="barUnread"></i></div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-top">
+            <small>Today</small>
+            <span class="stat-icon green" aria-hidden="true">&#9788;</span>
+          </div>
+          <b id="statToday" data-count="0">0</b>
+          <div class="stat-bar"><i id="barToday"></i></div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-top">
+            <small>This week</small>
+            <span class="stat-icon orange" aria-hidden="true">&#9200;</span>
+          </div>
+          <b id="statWeek" data-count="0">0</b>
+          <div class="stat-bar"><i id="barWeek"></i></div>
+        </article>
+      </section>
+
+      <section class="toolbar">
+        <div class="search-wrap">
+          <span class="search-ico" aria-hidden="true">&#8981;</span>
+          <label class="sr-only" for="searchInput">Search submissions</label>
+          <input type="search" id="searchInput" placeholder="Search name, email, subject or message&#8230;"
+                 autocomplete="off" spellcheck="false">
+          <button type="button" class="search-clear" id="searchClear" aria-label="Clear search">&#10005;</button>
+        </div>
+        <button type="button" class="icon-btn" id="refreshBtn">
+          <span class="spin-ico" aria-hidden="true">&#8635;</span> Refresh
+        </button>
+        <span class="result-count" id="resultCount" aria-live="polite"></span>
+      </section>
+
+      <div class="messages-grid" id="messagesGrid" aria-live="polite"></div>
+
+      <section class="state" id="stateEmpty">
+        <div class="state-icon" aria-hidden="true">&#9993;</div>
+        <h3>No submissions yet</h3>
+        <p>When someone fills in the contact form on your portfolio, their message will land right here.</p>
+        <a class="icon-btn accent" href="/">Open the portfolio</a>
+      </section>
+
+      <section class="state" id="stateNoResults">
+        <div class="state-icon" aria-hidden="true">&#8981;</div>
+        <h3>No results found</h3>
+        <p id="noResultsText">Nothing matched your search.</p>
+        <button type="button" class="icon-btn" id="clearSearchBtn">Clear search</button>
+      </section>
+
+      <section class="state state-error" id="stateError">
+        <div class="state-icon" aria-hidden="true">&#9888;</div>
+        <h3>Something went wrong</h3>
+        <p id="errorText">We could not load your submissions.</p>
+        <button type="button" class="icon-btn" id="retryBtn">Try again</button>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ---------------------------------------------------------
+       Elements
+       --------------------------------------------------------- */
+    var grid          = document.getElementById('messagesGrid');
+    var searchInput   = document.getElementById('searchInput');
+    var searchClear   = document.getElementById('searchClear');
+    var refreshBtn    = document.getElementById('refreshBtn');
+    var logoutBtn     = document.getElementById('logoutBtn');
+    var retryBtn      = document.getElementById('retryBtn');
+    var clearSearchBtn= document.getElementById('clearSearchBtn');
+    var resultCount   = document.getElementById('resultCount');
+    var userEmailEl   = document.getElementById('userEmail');
+    var userAvatarEl  = document.getElementById('userAvatar');
+    var toastEl       = document.getElementById('toast');
+
+    var stateEmpty     = document.getElementById('stateEmpty');
+    var stateNoResults = document.getElementById('stateNoResults');
+    var stateError     = document.getElementById('stateError');
+    var noResultsText  = document.getElementById('noResultsText');
+    var errorText      = document.getElementById('errorText');
+
+    var statEls = {
+      total:  document.getElementById('statTotal'),
+      unread: document.getElementById('statUnread'),
+      today:  document.getElementById('statToday'),
+      week:   document.getElementById('statWeek')
+    };
+    var barEls = {
+      total:  document.getElementById('barTotal'),
+      unread: document.getElementById('barUnread'),
+      today:  document.getElementById('barToday'),
+      week:   document.getElementById('barWeek')
+    };
+
+    var LIMIT = 200;
+    var currentQuery = '';
+    var searchTimer = null;
+    var toastTimer = null;
+    var isLoading = false;
+    var lastStats = { total: 0, unread: 0, today: 0, thisWeek: 0 };
+
+    /* ---------------------------------------------------------
+       Security helper - escape user supplied content
+       --------------------------------------------------------- */
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    /* Safe text node factory - never uses innerHTML with user data. */
+    function el(tag, className, text) {
+      var node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined && text !== null) node.textContent = String(text);
+      return node;
+    }
+
+    /* ---------------------------------------------------------
+       Formatting helpers
+       --------------------------------------------------------- */
+    function parseDate(value) {
+      if (!value) return null;
+      var d = new Date(value);
+      if (isNaN(d.getTime())) {
+        d = new Date(String(value).replace(' ', 'T'));
+      }
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    function relativeTime(value) {
+      var d = parseDate(value);
+      if (!d) return 'Unknown date';
+      var secs = Math.floor((Date.now() - d.getTime()) / 1000);
+      if (secs < 0) secs = 0;
+      if (secs < 45) return 'just now';
+
+      var mins = Math.floor(secs / 60);
+      if (mins < 60) return mins + (mins === 1 ? ' minute ago' : ' minutes ago');
+
+      var hours = Math.floor(mins / 60);
+      if (hours < 24) return hours + (hours === 1 ? ' hour ago' : ' hours ago');
+
+      var days = Math.floor(hours / 24);
+      if (days < 7) return days + (days === 1 ? ' day ago' : ' days ago');
+
+      if (days < 30) {
+        var weeks = Math.floor(days / 7);
+        return weeks + (weeks === 1 ? ' week ago' : ' weeks ago');
+      }
+      if (days < 365) {
+        var months = Math.floor(days / 30);
+        return months + (months === 1 ? ' month ago' : ' months ago');
+      }
+      var years = Math.floor(days / 365);
+      return years + (years === 1 ? ' year ago' : ' years ago');
+    }
+
+    function exactDate(value) {
+      var d = parseDate(value);
+      if (!d) return 'Unknown date';
+      try {
+        return d.toLocaleString(undefined, {
+          weekday: 'short', year: 'numeric', month: 'short',
+          day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+      } catch (e) {
+        return d.toString();
+      }
+    }
+
+    function initialOf(name) {
+      var s = String(name == null ? '' : name).trim();
+      return s ? s.charAt(0).toUpperCase() : '?';
+    }
+
+    /* ---------------------------------------------------------
+       Toast
+       --------------------------------------------------------- */
+    function toast(message, kind) {
+      toastEl.textContent = String(message);
+      toastEl.className = 'toast show' + (kind ? ' ' + kind : '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () {
+        toastEl.className = 'toast';
+      }, 2600);
+    }
+
+    /* ---------------------------------------------------------
+       Fetch wrapper - 401 always sends us to /login
+       --------------------------------------------------------- */
+    function api(path, options) {
+      var opts = options || {};
+      opts.credentials = 'same-origin';
+      opts.headers = opts.headers || {};
+      opts.headers.Accept = 'application/json';
+      return fetch(path, opts).then(function (res) {
+        if (res.status === 401) {
+          window.location.replace('/login');
+          throw new Error('unauthorized');
+        }
+        return res.json()
+          .catch(function () { return {}; })
+          .then(function (data) {
+            if (!res.ok || !data || data.success !== true) {
+              throw new Error((data && data.message) ? data.message : 'Request failed (' + res.status + ')');
+            }
+            return data;
+          });
+      });
+    }
+
+    /* ---------------------------------------------------------
+       Stats - animated count up
+       --------------------------------------------------------- */
+    function countUp(node, to) {
+      var from = parseInt(node.getAttribute('data-count'), 10) || 0;
+      to = parseInt(to, 10) || 0;
+      node.setAttribute('data-count', String(to));
+      if (from === to) { node.textContent = String(to); return; }
+
+      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduce) { node.textContent = String(to); return; }
+
+      var duration = 650;
+      var startTs = null;
+      function step(ts) {
+        if (startTs === null) startTs = ts;
+        var p = Math.min(1, (ts - startTs) / duration);
+        var eased = 1 - Math.pow(1 - p, 3);
+        node.textContent = String(Math.round(from + (to - from) * eased));
+        if (p < 1) requestAnimationFrame(step);
+        else node.textContent = String(to);
+      }
+      requestAnimationFrame(step);
+    }
+
+    function renderStats(stats) {
+      lastStats = {
+        total:    Number(stats.total)    || 0,
+        unread:   Number(stats.unread)   || 0,
+        today:    Number(stats.today)    || 0,
+        thisWeek: Number(stats.thisWeek) || 0
+      };
+      countUp(statEls.total,  lastStats.total);
+      countUp(statEls.unread, lastStats.unread);
+      countUp(statEls.today,  lastStats.today);
+      countUp(statEls.week,   lastStats.thisWeek);
+
+      var max = Math.max(1, lastStats.total);
+      barEls.total.style.width  = '100%';
+      barEls.unread.style.width = Math.min(100, (lastStats.unread   / max) * 100) + '%';
+      barEls.today.style.width  = Math.min(100, (lastStats.today    / max) * 100) + '%';
+      barEls.week.style.width   = Math.min(100, (lastStats.thisWeek / max) * 100) + '%';
+    }
+
+    function loadStats() {
+      return api('/api/admin/stats')
+        .then(function (data) { renderStats(data.stats || {}); })
+        .catch(function () { /* stats are non critical */ });
+    }
+
+    /* Adjust the unread counter locally after a "Mark read". */
+    function decrementUnread() {
+      lastStats.unread = Math.max(0, lastStats.unread - 1);
+      countUp(statEls.unread, lastStats.unread);
+      var max = Math.max(1, lastStats.total);
+      barEls.unread.style.width = Math.min(100, (lastStats.unread / max) * 100) + '%';
+    }
+
+    /* ---------------------------------------------------------
+       State toggling
+       --------------------------------------------------------- */
+    function hideStates() {
+      stateEmpty.classList.remove('show');
+      stateNoResults.classList.remove('show');
+      stateError.classList.remove('show');
+    }
+
+    function showSkeletons() {
+      hideStates();
+      grid.textContent = '';
+      resultCount.textContent = 'Loading\u2026';
+      for (var i = 0; i < 6; i++) {
+        var card = el('div', 'skeleton-card');
+
+        var row = el('div', 'sk-row');
+        row.appendChild(el('div', 'sk sk-avatar'));
+        var stack = el('div', 'sk-stack');
+        stack.appendChild(el('div', 'sk sk-line sk-w60'));
+        stack.appendChild(el('div', 'sk sk-line sk-w40'));
+        row.appendChild(stack);
+        card.appendChild(row);
+
+        var body = el('div', 'sk-body');
+        body.appendChild(el('div', 'sk sk-line sk-w75'));
+        body.appendChild(el('div', 'sk sk-line sk-w90'));
+        body.appendChild(el('div', 'sk sk-line sk-w60'));
+        body.appendChild(el('div', 'sk sk-line sk-w30'));
+        card.appendChild(body);
+
+        var acts = el('div', 'sk-actions');
+        acts.appendChild(el('div', 'sk sk-chip'));
+        acts.appendChild(el('div', 'sk sk-chip'));
+        card.appendChild(acts);
+
+        grid.appendChild(card);
+      }
+    }
+
+    /* ---------------------------------------------------------
+       Card builder - all user data goes in via textContent
+       --------------------------------------------------------- */
+    function buildCard(msg) {
+      var id      = msg.id;
+      var name    = String(msg.name == null ? '' : msg.name).trim() || 'Anonymous';
+      var email   = String(msg.email == null ? '' : msg.email).trim();
+      var subject = String(msg.subject == null ? '' : msg.subject).trim() || '(no subject)';
+      var body    = String(msg.message == null ? '' : msg.message);
+      var isRead  = msg.is_read === true || msg.is_read === 1 || msg.is_read === '1';
+
+      var card = el('article', 'msg-card' + (isRead ? '' : ' unread'));
+      card.setAttribute('data-id', String(id));
+
+      /* head: avatar + name/email + unread badge */
+      var head = el('div', 'msg-head');
+      head.appendChild(el('span', 'avatar', initialOf(name)));
+
+      var who = el('div', 'msg-who');
+      who.appendChild(el('h3', null, name));
+      if (email) {
+        var mail = el('a', null, email);
+        mail.href = 'mailto:' + encodeURIComponent(email).replace(/%40/g, '@');
+        mail.title = 'Email ' + email;
+        who.appendChild(mail);
+      } else {
+        who.appendChild(el('span', null, 'No email provided'));
+      }
+      head.appendChild(who);
+
+      if (!isRead) {
+        var badge = el('span', 'badge', 'Unread');
+        badge.setAttribute('data-role', 'badge');
+        head.appendChild(badge);
+      }
+      card.appendChild(head);
+
+      /* subject + body */
+      card.appendChild(el('p', 'msg-subject', subject));
+
+      var bodyEl = el('p', 'msg-body', body);
+      card.appendChild(bodyEl);
+
+      var readMore = el('button', 'read-more', 'Read more');
+      readMore.type = 'button';
+      card.appendChild(readMore);
+
+      /* Reveal "Read more" only when the text is actually clamped. */
+      requestAnimationFrame(function () {
+        if (bodyEl.scrollHeight - bodyEl.clientHeight > 4) readMore.classList.add('show');
+      });
+      readMore.addEventListener('click', function () {
+        var expanded = bodyEl.classList.toggle('expanded');
+        readMore.textContent = expanded ? 'Show less' : 'Read more';
+      });
+
+      /* meta */
+      var meta = el('div', 'msg-meta');
+      var when = el('span', null, relativeTime(msg.created_at));
+      when.title = exactDate(msg.created_at);
+      meta.appendChild(when);
+      meta.appendChild(el('span', 'dot'));
+      meta.appendChild(el('span', null, '#' + String(id)));
+      card.appendChild(meta);
+
+      /* actions */
+      var actions = el('div', 'msg-actions');
+
+      var markBtn = el('button', 'chip-btn');
+      markBtn.type = 'button';
+      markBtn.appendChild(el('span', null, '\u2713'));
+      markBtn.appendChild(el('span', null, 'Mark read'));
+      if (isRead) {
+        markBtn.disabled = true;
+        markBtn.lastChild.textContent = 'Read';
+      }
+      actions.appendChild(markBtn);
+
+      var replyBtn = el('a', 'chip-btn');
+      replyBtn.appendChild(el('span', null, '\u21A9'));
+      replyBtn.appendChild(el('span', null, 'Reply'));
+      if (email) {
+        replyBtn.href = 'mailto:' + encodeURIComponent(email).replace(/%40/g, '@') +
+                        '?subject=' + encodeURIComponent('Re: ' + subject);
+      } else {
+        replyBtn.setAttribute('aria-disabled', 'true');
+        replyBtn.style.opacity = '.45';
+        replyBtn.style.pointerEvents = 'none';
+      }
+      actions.appendChild(replyBtn);
+
+      var delBtn = el('button', 'chip-btn is-danger');
+      delBtn.type = 'button';
+      delBtn.appendChild(el('span', null, '\u2715'));
+      delBtn.appendChild(el('span', null, 'Delete'));
+      actions.appendChild(delBtn);
+
+      card.appendChild(actions);
+
+      /* in-card delete confirmation (no browser confirm()) */
+      var confirmBar = el('div', 'confirm-bar');
+      confirmBar.appendChild(el('p', null, 'Delete this message permanently?'));
+      var yesBtn = el('button', 'chip-btn solid', 'Yes, delete');
+      yesBtn.type = 'button';
+      var noBtn = el('button', 'chip-btn', 'Cancel');
+      noBtn.type = 'button';
+      confirmBar.appendChild(yesBtn);
+      confirmBar.appendChild(noBtn);
+      card.appendChild(confirmBar);
+
+      delBtn.addEventListener('click', function () {
+        confirmBar.classList.add('show');
+        delBtn.disabled = true;
+        yesBtn.focus();
+      });
+      noBtn.addEventListener('click', function () {
+        confirmBar.classList.remove('show');
+        delBtn.disabled = false;
+        delBtn.focus();
+      });
+
+      /* Mark read */
+      markBtn.addEventListener('click', function () {
+        if (markBtn.disabled) return;
+        markBtn.classList.add('busy');
+        api('/api/admin/messages/' + encodeURIComponent(id) + '/read', { method: 'PATCH' })
+          .then(function () {
+            card.classList.remove('unread');
+            var b = card.querySelector('[data-role="badge"]');
+            if (b && b.parentNode) b.parentNode.removeChild(b);
+            markBtn.disabled = true;
+            markBtn.lastChild.textContent = 'Read';
+            decrementUnread();
+            toast('Marked as read', 'ok');
+          })
+          .catch(function (err) {
+            if (err && err.message === 'unauthorized') return;
+            toast(err && err.message ? err.message : 'Could not mark as read', 'err');
+          })
+          .then(function () { markBtn.classList.remove('busy'); });
+      });
+
+      /* Delete */
+      yesBtn.addEventListener('click', function () {
+        yesBtn.classList.add('busy');
+        api('/api/admin/messages/' + encodeURIComponent(id), { method: 'DELETE' })
+          .then(function () {
+            card.classList.add('removing');
+            setTimeout(function () {
+              if (card.parentNode) card.parentNode.removeChild(card);
+              updateCountLabel();
+              if (!grid.children.length) {
+                if (currentQuery) showNoResults(currentQuery);
+                else stateEmpty.classList.add('show');
+              }
+            }, 300);
+            toast('Message deleted', 'ok');
+            loadStats();
+          })
+          .catch(function (err) {
+            yesBtn.classList.remove('busy');
+            if (err && err.message === 'unauthorized') return;
+            toast(err && err.message ? err.message : 'Could not delete message', 'err');
+          });
+      });
+
+      return card;
+    }
+
+    /* ---------------------------------------------------------
+       Rendering + loading
+       --------------------------------------------------------- */
+    function updateCountLabel() {
+      var n = grid.children.length;
+      resultCount.textContent = n
+        ? (n + (n === 1 ? ' message' : ' messages') + (currentQuery ? ' found' : ''))
+        : '';
+    }
+
+    function showNoResults(query) {
+      /* escapeHtml keeps the echoed query inert even though we also set it as text. */
+      noResultsText.innerHTML =
+        'Nothing matched &ldquo;<strong>' + escapeHtml(query) + '</strong>&rdquo;. Try a different name, email or keyword.';
+      stateNoResults.classList.add('show');
+    }
+
+    function render(messages) {
+      hideStates();
+      grid.textContent = '';
+
+      if (!messages.length) {
+        resultCount.textContent = '';
+        if (currentQuery) showNoResults(currentQuery);
+        else stateEmpty.classList.add('show');
+        return;
+      }
+
+      var frag = document.createDocumentFragment();
+      for (var i = 0; i < messages.length; i++) {
+        var card = buildCard(messages[i]);
+        card.style.animationDelay = Math.min(i * 35, 400) + 'ms';
+        frag.appendChild(card);
+      }
+      grid.appendChild(frag);
+      updateCountLabel();
+    }
+
+    function loadMessages(query) {
+      if (isLoading) return;
+      isLoading = true;
+      currentQuery = query || '';
+      refreshBtn.classList.add('spinning');
+      refreshBtn.disabled = true;
+      showSkeletons();
+
+      var url = '/api/admin/messages?limit=' + LIMIT +
+                '&q=' + encodeURIComponent(currentQuery);
+
+      api(url)
+        .then(function (data) {
+          render(Array.isArray(data.messages) ? data.messages : []);
+        })
+        .catch(function (err) {
+          if (err && err.message === 'unauthorized') return;
+          hideStates();
+          grid.textContent = '';
+          resultCount.textContent = '';
+          errorText.textContent = err && err.message
+            ? err.message
+            : 'We could not load your submissions.';
+          stateError.classList.add('show');
+        })
+        .then(function () {
+          isLoading = false;
+          refreshBtn.classList.remove('spinning');
+          refreshBtn.disabled = false;
+        });
+    }
+
+    /* ---------------------------------------------------------
+       Session
+       --------------------------------------------------------- */
+    function loadSession() {
+      return api('/api/auth/me').then(function (data) {
+        var email = String(data.email == null ? '' : data.email);
+        userEmailEl.textContent = email || 'Signed in';
+        userEmailEl.title = email;
+        userAvatarEl.textContent = initialOf(email);
+      });
+    }
+
+    /* ---------------------------------------------------------
+       Events
+       --------------------------------------------------------- */
+    searchInput.addEventListener('input', function () {
+      var value = searchInput.value;
+      searchClear.classList.toggle('show', value.length > 0);
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function () {
+        loadMessages(value.trim());
+      }, 300);
+    });
+
+    searchInput.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && searchInput.value) {
+        ev.preventDefault();
+        resetSearch();
+      }
+    });
+
+    function resetSearch() {
+      searchInput.value = '';
+      searchClear.classList.remove('show');
+      clearTimeout(searchTimer);
+      loadMessages('');
+      searchInput.focus();
+    }
+
+    searchClear.addEventListener('click', resetSearch);
+    clearSearchBtn.addEventListener('click', resetSearch);
+
+    refreshBtn.addEventListener('click', function () {
+      loadMessages(searchInput.value.trim());
+      loadStats();
+    });
+
+    retryBtn.addEventListener('click', function () {
+      loadMessages(searchInput.value.trim());
+      loadStats();
+    });
+
+    logoutBtn.addEventListener('click', function () {
+      logoutBtn.disabled = true;
+      fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' }
+      })
+        .then(function () { window.location.replace('/login'); })
+        .catch(function () { window.location.replace('/login'); });
+    });
+
+    /* Keyboard: "/" focuses search */
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === '/' && document.activeElement !== searchInput) {
+        var tag = (document.activeElement && document.activeElement.tagName) || '';
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+          ev.preventDefault();
+          searchInput.focus();
+        }
+      }
+    });
+
+    /* ---------------------------------------------------------
+       Boot
+       --------------------------------------------------------- */
+    loadSession()
+      .then(function () {
+        loadStats();
+        loadMessages('');
+      })
+      .catch(function (err) {
+        if (err && err.message === 'unauthorized') return;
+        userEmailEl.textContent = 'Signed in';
+        loadStats();
+        loadMessages('');
+      });
+  })();
+  </script>
+</body>
+</html>

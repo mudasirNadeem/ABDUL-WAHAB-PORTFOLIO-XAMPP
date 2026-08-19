@@ -1,0 +1,10 @@
+{
+  "name":"Abdul Wahab Portfolio",
+  "short_name":"AW Portfolio",
+  "start_url":"./index.html",
+  "display":"standalone",
+  "background_color":"#050b14",
+  "theme_color":"#07111f",
+  "description":"Abdul Wahab — Computer Science graduate and Full Stack Web Developer",
+  "icons":[{"src":"assets/images/profile.jpg","sizes":"512x512","type":"image/jpeg","purpose":"any maskable"}]
+}
