@@ -31,6 +31,20 @@ async function initDb() {
         technologies VARCHAR(255),
         created_at TIMESTAMPTZ DEFAULT NOW()
       )`);
+      await query(`CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(150) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(20) NOT NULL DEFAULT 'admin',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )`);
+      // Seed the first admin so a fresh database is never locked out.
+      await query(
+        `INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'admin')
+         ON CONFLICT (email) DO NOTHING`,
+        ['abdulwahabkhan1137@gmail.com',
+         '$2a$10$z/18w9ZYNGWCbhvE9BZAi.7ClPI4FiWWmVRr/ep6TylSjpitAlOyi']
+      );
     })().catch(err => {
       initPromise = null; // allow a retry on the next request
       throw err;

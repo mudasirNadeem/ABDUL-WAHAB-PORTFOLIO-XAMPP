@@ -2,6 +2,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { initDb, query } = require('../db');
 
 const router = express.Router();
 
@@ -49,10 +50,36 @@ function requireAuth(req, res, next) {
   }
 }
 
-router.post('/login', (req, res) => {
+// Look the user up in the users table. Returns null if absent OR if the DB is
+// unreachable, so the env-admin fallback below still works without Postgres.
+async function findUser(email) {
+  try {
+    await initDb();
+    const r = await query(
+      'SELECT email, password_hash, role FROM users WHERE lower(email) = lower($1)',
+      [email]
+    );
+    return r.rows[0] || null;
+  } catch (err) {
+    console.error('db error:', err.message);
+    return null;
+  }
+}
+
+router.post('/login', async (req, res) => {
   const b = req.body || {};
   const email = typeof b.email === 'string' ? b.email.trim() : '';
   const password = typeof b.password === 'string' ? b.password : '';
+
+  const user = email ? await findUser(email) : null;
+  if (user) {
+    if (!bcrypt.compareSync(password, user.password_hash)) {
+      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+    }
+    const token = jwt.sign({ email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    res.cookie(COOKIE, token, cookieOpts());
+    return res.json({ success: true });
+  }
 
   const ok = email.toLowerCase() === ADMIN_EMAIL.toLowerCase() && checkPassword(password);
   if (!ok) return res.status(401).json({ success: false, message: 'Invalid email or password.' });
